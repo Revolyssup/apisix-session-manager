@@ -1,0 +1,29 @@
+{
+    "uri": "/request",
+    "plugins": {
+        "key-auth":{},
+        "ext-plugin-pre-req": {
+            "conf": [
+                {
+                    "name":"session_manager",
+                    "value":"{\"sessionTimeoutInSeconds\":100,\"cookie\":\"x-session-manager-sid\",\"keyAuthEnabled\":true}" 
+                }
+            ]
+        },
+		"ext-plugin-post-resp": {
+            "conf": [
+                {
+                    "name":"session_manager",
+                    "value":"{\"sessionTimeoutInSeconds\":100,\"cookie\":\"x-session-manager-sid\",\"keyAuthEnabled\":true}"
+                }
+            ]
+        }
+    },
+    "upstream": {
+        "type": "roundrobin",
+        "nodes": {
+            "93.184.216.34": 1,
+			"142.250.194.238":1
+        }
+    }
+}

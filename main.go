@@ -13,7 +13,7 @@ func main() {
 	cfg := runner.RunnerConfig{
 		LogLevel: zapcore.DebugLevel,
 	}
-	if err := plugin.RegisterPlugin(session.New()); err != nil {
+	if err := plugin.RegisterPlugin(session.New(cfg)); err != nil {
 		log.Fatalf("failed to register plugin: %s", err.Error())
 	}
 	runner.Run(cfg)
