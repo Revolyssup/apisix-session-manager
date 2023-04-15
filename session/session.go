@@ -30,6 +30,7 @@ type Instance struct {
 type Config struct {
 	SessionTimeoutInSeconds int    `json:"sessionTimeoutInSeconds"`
 	CookieName              string `json:"cookie"`
+	CustomKeyAuth           string `json:"customKeyAuth"`  //Use custom key auth until the issue described in session struct is fixed. This stores the "password"/"value of custom key "
 	KeyAuthEnabled          bool   `json:"keyAuthEnabled"` //When using it along with the key-auth plugin, the apiKey is stored in session
 }
 
@@ -38,8 +39,11 @@ type session struct {
 	reqID     uint32 //Initial req ID from which the session was created
 	sessionID string
 	//Caveat: When using with key-auth plugin, until the first time a valid APIKEY is passed, session wont be created because there is no point in creating a session if the "post-resp" plugin wont be executed which is responsble for writing back sessionID in cookie
-	apiKeyValue string //When used with key-auth plugin. Make sure to hook session_plugin in pre-req when using alongside key-auth
-	isSticky    bool
+	//TODO,FIXME: Any changes made to header in this plugin are not being respected by subsequent key-auth plugin. For example the apiKey being added in header after extracting from a session is not being respected by key-auth plugin
+	//Use custom key auth until the above is fixed.
+	apiKeyValue    string //When used with key-auth plugin. Make sure to hook session_plugin in pre-req when using alongside key-auth
+	isSticky       bool
+	customKeyValue string
 }
 
 // Reusing apisix's plugin logger function for reusability
@@ -127,6 +131,7 @@ func (i *Instance) createSession(reqID uint32, id string, s *session) {
 }
 
 const APIKEY = "apiKey"
+const CUSTOMAPIKEY = "apiKey"
 
 // RequestFilter is responsible for creating sessions if it doesn't already exist
 func (i *Instance) RequestFilter(cfg interface{}, w http.ResponseWriter, r apisixHTTP.Request) {
@@ -144,6 +149,10 @@ func (i *Instance) RequestFilter(cfg interface{}, w http.ResponseWriter, r apisi
 		if config.KeyAuthEnabled {
 			sess.apiKeyValue = r.Header().Get(APIKEY)
 			i.log.Info("SET APIKEY IN SESSION AS: ", sess.apiKeyValue, " for session", sess.sessionID)
+		}
+		if config.CustomKeyAuth != "" {
+			sess.customKeyValue = r.Header().Get(CUSTOMAPIKEY)
+			i.log.Info("SET APIKEY IN SESSION AS: ", sess.customKeyValue, " for session", sess.sessionID)
 		}
 		i.createSession(r.ID(), sid, sess)
 		r.Header().Set("Cookie", fmt.Sprintf("%s=%s", config.CookieName, sid)) //This is useful for sticky sessions. When the sid key that is passed to this plugin is used for chash loadbalancing in upstream
@@ -163,6 +172,16 @@ func (i *Instance) RequestFilter(cfg interface{}, w http.ResponseWriter, r apisi
 			sess.apiKeyValue = r.Header().Get(APIKEY)
 		}
 		r.Header().Set(APIKEY, sess.apiKeyValue)
+	}
+	if config.CustomKeyAuth != "" && sess != nil {
+		detectedKey := r.Header().Get(CUSTOMAPIKEY)
+		if detectedKey != "" { //If another API key is sent for subsequent request then respect the new APIKEY to refresh the store
+			sess.customKeyValue = detectedKey
+		}
+		if detectedKey != config.CustomKeyAuth && sess.customKeyValue != config.CustomKeyAuth {
+			w.Header().Set("Set-Cookie", fmt.Sprintf("%s=%s", config.CookieName, sess.sessionID)) //ResponseFilter will never be executed as the request will be returned back from here so we need to set the cookie here.
+			w.WriteHeader(http.StatusUnauthorized)
+		}
 	}
 }
 
