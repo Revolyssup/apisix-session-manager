@@ -14,12 +14,14 @@ import (
 
 // Mock implementation of http.ResponseWriter for testing
 type MockResponseWriter struct {
-	writeheader mockHeader
+	writeheader    mockHeader
+	responseHeader http.Header
+	statuscode     int
 }
 
 // Unimplemented
 func (m *MockResponseWriter) Header() http.Header {
-	return nil
+	return m.responseHeader
 }
 
 func (m *MockResponseWriter) Write([]byte) (int, error) {
@@ -27,7 +29,7 @@ func (m *MockResponseWriter) Write([]byte) (int, error) {
 }
 
 func (m *MockResponseWriter) WriteHeader(statusCode int) {
-
+	m.statuscode = statusCode
 }
 func (m *MockResponseWriter) ReadBody() ([]byte, error) {
 	return nil, nil
@@ -37,6 +39,7 @@ func (m *MockResponseWriter) ReadBody() ([]byte, error) {
 
 type MockRequest struct {
 	readheader mockHeader
+	statuscode int
 }
 
 func (m *MockRequest) ID() uint32 {
@@ -67,7 +70,7 @@ func (m *MockRequest) Var(name string) ([]byte, error) {
 }
 
 func (m *MockRequest) WriteHeader(statusCode int) {
-
+	m.statuscode = statusCode
 }
 func (m *MockRequest) Args() url.Values {
 	return nil

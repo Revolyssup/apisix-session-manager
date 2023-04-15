@@ -2,6 +2,7 @@ package session
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/apache/apisix-go-plugin-runner/pkg/runner"
@@ -38,6 +39,43 @@ func TestRequestFilter(t *testing.T) {
 				}
 				if !ok {
 					return fmt.Errorf("no cookie found for test-id")
+				}
+				return nil
+			},
+		},
+		{
+			name:        "TestCustomKeyAuth",
+			description: "When session is non existent and apiKey is not passed in header then reject the calls with 401 along with a newly created session",
+			cfg: Config{
+				CookieName:    "test-id",
+				CustomKeyAuth: "auth-one",
+			},
+			req: &MockRequest{
+				readheader: mockHeader{header: make(map[string]string)},
+			},
+			res: &MockResponseWriter{
+				writeheader:    mockHeader{header: make(map[string]string)},
+				responseHeader: make(http.Header),
+			},
+			sessionState: map[string]*session{
+				"abc": {
+					sessionID: "abc",
+				},
+			},
+			check: func(req *MockRequest, res *MockResponseWriter) error {
+				cookies := res.Header().Get("Set-Cookie")
+				if cookies == "" {
+					return fmt.Errorf("no instruction to set cookie")
+				}
+				key, ok := getKeyFromCookies("test-id", cookies)
+				if ok && key == "" {
+					return fmt.Errorf("empty key set")
+				}
+				if !ok {
+					return fmt.Errorf("no cookie found for test-id")
+				}
+				if res.statuscode != http.StatusUnauthorized {
+					return fmt.Errorf("expected status code:%d, found %d", http.StatusUnauthorized, res.statuscode)
 				}
 				return nil
 			},
