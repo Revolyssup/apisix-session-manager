@@ -1,0 +1,1 @@
+![Tests](https://github.com/revolyssup/apisix-session-manager/actions/workflows/ci.yaml/badge.svg)
