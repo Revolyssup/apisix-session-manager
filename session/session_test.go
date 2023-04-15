@@ -17,7 +17,7 @@ func TestRequestFilter(t *testing.T) {
 		reqSessionState map[uint32]*session //To be used for mocking a session state before Filter handling
 		req             *MockRequest
 		res             *MockResponseWriter
-		check           func(req *MockRequest, res *MockResponseWriter) error
+		check           func(req *MockRequest, res *MockResponseWriter, sess map[string]*session) error
 	}
 	testCases := []testCase{
 		{
@@ -32,7 +32,9 @@ func TestRequestFilter(t *testing.T) {
 			res: &MockResponseWriter{
 				writeheader: mockHeader{header: make(map[string]string)},
 			},
-			check: func(req *MockRequest, res *MockResponseWriter) error {
+			reqSessionState: make(map[uint32]*session),
+			sessionState:    make(map[string]*session),
+			check: func(req *MockRequest, res *MockResponseWriter, sess map[string]*session) error {
 				key, ok := getKeyFromCookies("test-id", req.Header().Get("Cookie"))
 				if ok && key == "" {
 					return fmt.Errorf("empty key set")
@@ -62,7 +64,8 @@ func TestRequestFilter(t *testing.T) {
 					sessionID: "abc",
 				},
 			},
-			check: func(req *MockRequest, res *MockResponseWriter) error {
+			reqSessionState: make(map[uint32]*session),
+			check: func(req *MockRequest, res *MockResponseWriter, sess map[string]*session) error {
 				cookies := res.Header().Get("Set-Cookie")
 				if cookies == "" {
 					return fmt.Errorf("no instruction to set cookie")
@@ -79,13 +82,50 @@ func TestRequestFilter(t *testing.T) {
 				}
 				return nil
 			},
+		}, {
+			name:        "TestCustomKeyAuthWithCorrectKey",
+			description: "When session is non existent and apiKey is correctly passed in header then the calls should not 401 and a new session should store the passed apiKey",
+			cfg: Config{
+				CookieName:    "test-id",
+				CustomKeyAuth: "auth-one",
+			},
+			req: &MockRequest{
+				readheader: mockHeader{
+					header: map[string]string{
+						"apiKey": "auth-one",
+					},
+				},
+			},
+			res: &MockResponseWriter{
+				writeheader:    mockHeader{header: make(map[string]string)},
+				responseHeader: make(http.Header),
+			},
+			sessionState:    map[string]*session{},
+			reqSessionState: make(map[uint32]*session),
+			check: func(req *MockRequest, res *MockResponseWriter, sess map[string]*session) error {
+				if res.statuscode == http.StatusUnauthorized {
+					return fmt.Errorf("failed to authorize")
+				}
+				for _, s := range sess {
+					if s.customKeyValue != "" {
+						if s.customKeyValue != "auth-one" {
+							return fmt.Errorf("wrong value stored for apiKey: %s,expected %s", s.customKeyValue, "auth-one")
+						}
+						return nil
+					}
+
+				}
+				return fmt.Errorf("could not find a valid session")
+			},
 		},
 	}
 
 	for _, tt := range testCases {
 		i := New(runner.RunnerConfig{}) // A new instance of plugin
+		i.sessions = tt.sessionState
+		i.requestSessions = tt.reqSessionState
 		i.RequestFilter(tt.cfg, tt.res, tt.req)
-		err := tt.check(tt.req, tt.res)
+		err := tt.check(tt.req, tt.res, tt.sessionState)
 		if err != nil {
 			t.Fatal(fmt.Printf("Name: %s\nDescription:%s\nReason:%s\n", tt.name, tt.description, err.Error()))
 		}
