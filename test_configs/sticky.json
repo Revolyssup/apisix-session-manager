@@ -1,0 +1,30 @@
+{
+    "uri": "/request",
+    "plugins": {
+        "ext-plugin-pre-req": {
+            "conf": [
+                {
+                    "name":"session_manager",
+                    "value":"{\"sessionTimeoutInSeconds\":10,\"cookie\":\"x-session-manager-sid\"}" 
+                }
+            ]
+        },
+		"ext-plugin-post-resp": {
+            "conf": [
+                {
+                    "name":"session_manager",
+                    "value":"{\"sessionTimeoutInSeconds\":10,\"cookie\":\"x-session-manager-sid\"}"
+                }
+            ]
+        }
+    },
+    "upstream": {
+        "type": "chash",
+		"key":"sid",
+		"hash_on":"cookie",
+        "nodes": {
+            "93.184.216.34": 1,
+			"142.250.194.238":1
+        }
+    }
+}
