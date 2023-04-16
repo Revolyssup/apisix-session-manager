@@ -46,7 +46,6 @@ Store, auto-expire, and creation of sessions: The plugin handles the creation an
 
 7. For consistency pass the same config in both “ext-plugin-pre-req” and “ext-plugin-post-resp”. Example configs are given in configs directory
 
-8. The lua-session-resty supports multiple backends like redis and postgres. So can this plugin since any storage layer can be used. For now simple in-mem go maps are used so the sessions are deleted on stopping the plugin.
 ## Demo/Screenshots
 The configs passed to admin API for testing each of these features is given in .configs/
 ![Screenshot_20230416_210950](https://user-images.githubusercontent.com/43276904/232324035-81190614-4679-431c-9e66-3f3bb351e578.png)
