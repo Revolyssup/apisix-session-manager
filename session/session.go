@@ -24,7 +24,6 @@ type Instance struct {
 	sessMx          sync.RWMutex
 	reqSessMx       sync.RWMutex
 	log             *zap.SugaredLogger
-	cleanupQueue    chan string // This channel recieves sessions IDs to delete triggered by something like a timeout of the session. Never close this channel
 }
 
 type Config struct {
@@ -73,28 +72,18 @@ func New(cfg runner.RunnerConfig) *Instance {
 	i := &Instance{
 		requestSessions: make(map[uint32]*session),
 		sessions:        make(map[string]*session),
-		cleanupQueue:    make(chan string),
 	}
 	i.log = newLogger(cfg.LogLevel, cfg.LogOutput)
-	go i.cleanup()
 	return i
 }
 
-func (i *Instance) cleanup() {
-	for {
-		select {
-		case sid := <-i.cleanupQueue:
-			i.removeSession(sid)
-		}
-	}
-}
 func (i *Instance) Name() string {
 	return pluginName
 }
-func (i *Instance) removeSession(sid string) {
+func (i *Instance) removeSession(sid string, reason string) {
 	i.sessMx.Lock()
 	i.sessMx.Unlock()
-	i.log.Info("Cleaned up session: ", sid)
+	i.log.Info("Cleaned up session: ", sid, " due to ", reason)
 	delete(i.sessions, sid)
 }
 func (i *Instance) ParseConf(in []byte) (interface{}, error) {
@@ -180,7 +169,7 @@ func (i *Instance) RequestFilter(cfg interface{}, w http.ResponseWriter, r apisi
 				return
 			}
 			<-time.After(time.Second * time.Duration(timeout))
-			i.cleanupQueue <- sid
+			i.removeSession(sid, "timeout")
 		}(sid, config.SessionTimeoutInSeconds)
 	} else if sess != nil { //Even for existing sessions, the new requestIDs should be associated with them
 		i.addSessionOnRequest(r.ID(), sess)
@@ -215,7 +204,7 @@ func (i *Instance) ResponseFilter(cfg interface{}, w apisixHTTP.Response) {
 	if sess != nil { //Attach the proper cookies on response for existing session
 		sess.addResponseCode(w.StatusCode()) //Store status code
 		if config.SessionTimeoutOnFailedRequests > 0 && len(sess.responseCodes) > 4 && config.SessionTimeoutOnFailedRequests <= len(sess.responseCodes[4])+len(sess.responseCodes[5]) {
-			i.removeSession(sess.sessionID)
+			i.removeSession(sess.sessionID, "overflown the number of allowed failed requests")
 			return
 		}
 		w.Header().Set("Set-Cookie", fmt.Sprintf("%s=%s", config.CookieName, sess.sessionID))
