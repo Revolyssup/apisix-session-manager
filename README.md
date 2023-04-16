@@ -27,6 +27,7 @@ Session backed key-auth: Each session exists across the lifecycle of multiple re
 Facilitation of sticky sessions when used along with chash loadbalancer strategy in APISIX upstream: The plugin acts as a cookie manager and associates each session with cookies. When chash type loadbalancing is enabled, clients do not have to manually set cookies and keep track.
 
 Store, auto-expire, and creation of sessions: The plugin handles the creation and deletion of sessions, and using the timeout and failureLimit values passed in the plugin configuration, sessions are invalidated and new sessions are created accordingly. Moreover, the plugin has extensive unit tests in Go, covering both RequestFilter and ResponseFilter methods given by apisix-go-plugin-runner, ensuring its robustness and reliability.
+![Untitled-2023-04-16-2105](https://user-images.githubusercontent.com/43276904/232325428-8e41b084-431f-4b86-acfa-a57d90c0ace5.svg)
 
 
 ## Caveats, Limitations and other Implementation details 
