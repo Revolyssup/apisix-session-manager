@@ -47,6 +47,7 @@ Store, auto-expire, and creation of sessions: The plugin handles the creation an
 
 ## Demo/Screenshots
 The configs passed to admin API for testing each of these features is given in .configs/
+![Screenshot_20230416_210950](https://user-images.githubusercontent.com/43276904/232324035-81190614-4679-431c-9e66-3f3bb351e578.png)
 
 
 1. A session being created and persisted in the cookie with simple round-robin. Note a new cookie being generated after 10 seconds as that was the timeout for a session provided.
