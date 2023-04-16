@@ -40,7 +40,7 @@ Store, auto-expire, and creation of sessions: The plugin handles the creation an
 
 4. Currently sessions are stored in go maps, like lua-resty-sessions multiple backends like redis or postgres can be integrated to persist the sessions much more reliably.
 
-5. This one is not limited to this plugin but an in general limitation of sticky sessions inside APISIX. When the upstream nodes are DNS names instead of IPs, the chash loadbalancing does not work therefore sticky sessions cannot be guaranteed. Refer to this github issue (#9305) where my doubt regarding why the DNS name doesn’t work was clarified.
+5. This one is not limited to this plugin but an in general limitation of sticky sessions inside APISIX. When the upstream nodes are DNS names instead of IPs, the chash loadbalancing does not work therefore sticky sessions cannot be guaranteed. Refer to this github issue ![(#9305)](https://github.com/apache/apisix/issues/9305) where my doubt regarding why the DNS name doesn’t work was clarified.
 
 6. Notice the APISIX version in the docker-compose.yaml in repository because some previous versions did not have support for “ext-plugin-post-resp” which is required for this plugin to operate.
 
