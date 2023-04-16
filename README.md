@@ -49,7 +49,28 @@ Store, auto-expire, and creation of sessions: The plugin handles the creation an
 The configs passed to admin API for testing each of these features is given in .configs/
 
 
+1. A session being created and persisted in the cookie with simple round-robin. Note a new cookie being generated after 10 seconds as that was the timeout for a session provided.
 
+[![Demo]()](https://user-images.githubusercontent.com/43276904/232322685-9274a862-e07b-434a-847c-04ab8723a7b9.mp4)
+
+
+![timeout](https://user-images.githubusercontent.com/43276904/232323525-4be6cdd1-f6f6-41f9-b4db-330c13887d90.png)
+
+2. After user key-auth is passed once for a session, the authentication information is stored with the session and used throughout the session. User doesn't need to keep passing it in a header which imprpves security.
+[![Demo]()](https://user-images.githubusercontent.com/43276904/232322322-b60bbed5-3122-4f6c-b7ed-6cc047081a18.mp4)
+
+
+
+3. When used with chash type load balancing, you can see the sticky session behaviour for a given session.
+[![Demo]()](https://user-images.githubusercontent.com/43276904/232322935-8a43f90e-e2ef-455f-8483-aa159690333f.mp4)
+
+
+4. An example of a session being refreshed after a limit(3) failed requests.
+
+[![Demo]()](https://user-images.githubusercontent.com/43276904/232323281-b42a5112-6008-436f-a34b-a1005ed5505e.mp4)
+
+
+![limitReq](https://user-images.githubusercontent.com/43276904/232323348-04efab09-4125-4c89-91b0-e7e51817c7c6.png)
 
 
 
