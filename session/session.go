@@ -82,7 +82,7 @@ func (i *Instance) Name() string {
 }
 func (i *Instance) removeSession(sid string, reason string) {
 	i.sessMx.Lock()
-	i.sessMx.Unlock()
+	defer i.sessMx.Unlock()
 	i.log.Info("Cleaned up session: ", sid, " due to ", reason)
 	delete(i.sessions, sid)
 }
