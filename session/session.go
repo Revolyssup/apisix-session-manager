@@ -140,6 +140,7 @@ func (i *Instance) RequestFilter(cfg interface{}, w http.ResponseWriter, r apisi
 	cookies := r.Header().Get("Cookie")
 	sid, ok := getKeyFromCookies(config.CookieName, cookies)
 	sess := i.getSession(sid)
+	fmt.Println("BRO ", sess)
 	if !ok || sess == nil { //If no session is found or there exists an expired session then create a new Session
 		sid := uuid.New().String()
 		sess = &session{

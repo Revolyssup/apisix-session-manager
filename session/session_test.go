@@ -118,6 +118,38 @@ func TestRequestFilter(t *testing.T) {
 				return fmt.Errorf("could not find a valid session")
 			},
 		},
+		{
+			name:        "TestCustomKeyAuthExistingSessionWithCorrectKey",
+			description: "When session is existent and apiKey is not passed in header then the calls should not 401 if the session contains valid key",
+			cfg: Config{
+				CookieName:    "test-id",
+				CustomKeyAuth: "auth-one",
+			},
+			req: &MockRequest{
+				readheader: mockHeader{
+					header: map[string]string{
+						"Cookie": "test-id=abc", //The client's existing session is identified by the sessionID in cookie
+					},
+				},
+			},
+			res: &MockResponseWriter{
+				writeheader:    mockHeader{header: make(map[string]string)},
+				responseHeader: make(http.Header),
+			},
+			sessionState: map[string]*session{
+				"abc": {
+					sessionID:      "abc",
+					customKeyValue: "auth-one", //Custom key is already stored inside of session
+				},
+			},
+			reqSessionState: make(map[uint32]*session),
+			check: func(req *MockRequest, res *MockResponseWriter, sess map[string]*session) error {
+				if res.statuscode == http.StatusUnauthorized {
+					return fmt.Errorf("failed to authorize")
+				}
+				return nil
+			},
+		},
 	}
 
 	for _, tt := range testCases {
