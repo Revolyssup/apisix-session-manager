@@ -42,7 +42,7 @@ func (s *session) addResponseCode(statusCode int) {
 
 // Each session represents a client-server sessions and stores information about the client for subsequent requests
 type session struct {
-	reqID         uint32 //Initial req ID from which the session was created
+	reqID         []uint32 //All request IDs associated with this session
 	responseCodes [][]int
 	sessionID     string
 	//Caveat: When using with key-auth plugin, until the first time a valid APIKEY is passed, session wont be created because there is no point in creating a session if the "post-resp" plugin wont be executed which is responsble for writing back sessionID in cookie
@@ -81,10 +81,20 @@ func (i *Instance) Name() string {
 	return pluginName
 }
 func (i *Instance) removeSession(sid string, reason string) {
+	sess := i.getSession(sid)
+	if sess == nil {
+		return
+	}
+	reqIDs := sess.reqID
 	i.sessMx.Lock()
 	defer i.sessMx.Unlock()
-	i.log.Info("Cleaned up session: ", sid, " due to ", reason)
 	delete(i.sessions, sid)
+	i.log.Info("Cleaned up session: ", sid, " due to ", reason)
+	go func(reqIDs []uint32) { // This cleanup can be done lazily
+		for _, reqid := range reqIDs {
+			delete(i.requestSessions, reqid)
+		}
+	}(reqIDs)
 }
 func (i *Instance) ParseConf(in []byte) (interface{}, error) {
 	cfg := Config{}
@@ -147,7 +157,7 @@ func (i *Instance) RequestFilter(cfg interface{}, w http.ResponseWriter, r apisi
 	if !ok || sess == nil { //If no session is found or there exists an expired session then create a new Session
 		sid := uuid.New().String()
 		sess = &session{
-			reqID:         r.ID(),
+			reqID:         []uint32{r.ID()},
 			sessionID:     sid,
 			responseCodes: make([][]int, 6), //To fascillitate status codes upto 500
 		}
@@ -203,6 +213,7 @@ func (i *Instance) ResponseFilter(cfg interface{}, w apisixHTTP.Response) {
 	sess := i.getSessionFromRequestID(reqID)
 	if sess != nil { //Attach the proper cookies on response for existing session
 		sess.addResponseCode(w.StatusCode()) //Store status code
+		fmt.Println(sess.responseCodes)
 		if config.SessionTimeoutOnFailedRequests > 0 && len(sess.responseCodes) > 4 && config.SessionTimeoutOnFailedRequests <= len(sess.responseCodes[4])+len(sess.responseCodes[5]) {
 			i.removeSession(sess.sessionID, "overflown the number of allowed failed requests")
 			return
