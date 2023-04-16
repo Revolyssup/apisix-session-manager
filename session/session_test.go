@@ -188,11 +188,14 @@ func TestResponseFilter(t *testing.T) {
 				resid: 124, //As you can see the response ID is 1+reqID
 			},
 			sessionState: map[string]*session{ //Emulating session creation of Request Filter
-				"xyz": {},
+				"xyz": {
+					responseCodes: make([][]int, 6), //To fascillitate status codes upto 500,
+				},
 			},
 			reqSessionState: map[uint32]*session{
 				123: {
-					sessionID: "xyz",
+					sessionID:     "xyz",
+					responseCodes: make([][]int, 6), //To fascillitate status codes upto 500,
 				},
 			},
 			check: func(res *MockAPISIXResponseWriter) error {

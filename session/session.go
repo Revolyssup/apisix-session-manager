@@ -28,16 +28,24 @@ type Instance struct {
 }
 
 type Config struct {
-	SessionTimeoutInSeconds int    `json:"sessionTimeoutInSeconds"`
-	CookieName              string `json:"cookie"`
-	CustomKeyAuth           string `json:"customKeyAuth"`  //Use custom key auth until the issue described in session struct is fixed. This stores the "password"/"value of custom key "
-	KeyAuthEnabled          bool   `json:"keyAuthEnabled"` //When using it along with the key-auth plugin, the apiKey is stored in session
+	SessionTimeoutInSeconds        int    `json:"sessionTimeoutInSeconds"`
+	SessionTimeoutOnFailedRequests int    `json:"failureLimit"` //After this number of failed response, session will be reset to perform a full refresh. Failure is defined as responses with status code>=400
+	CookieName                     string `json:"cookie"`
+	CustomKeyAuth                  string `json:"customKeyAuth"`  //Use custom key auth until the issue described in session struct is fixed. This stores the "password"/"value of custom key "
+	KeyAuthEnabled                 bool   `json:"keyAuthEnabled"` //When using it along with the key-auth plugin, the apiKey is stored in session
+}
+
+// 1-> All status codes bw [100,200)
+// 2 -> All status codes bw [200,300) ...and so on
+func (s *session) addResponseCode(statusCode int) {
+	s.responseCodes[statusCode/100] = append(s.responseCodes[statusCode/100], statusCode)
 }
 
 // Each session represents a client-server sessions and stores information about the client for subsequent requests
 type session struct {
-	reqID     uint32 //Initial req ID from which the session was created
-	sessionID string
+	reqID         uint32 //Initial req ID from which the session was created
+	responseCodes [][]int
+	sessionID     string
 	//Caveat: When using with key-auth plugin, until the first time a valid APIKEY is passed, session wont be created because there is no point in creating a session if the "post-resp" plugin wont be executed which is responsble for writing back sessionID in cookie
 	//TODO,FIXME: Any changes made to header in this plugin are not being respected by subsequent key-auth plugin. For example the apiKey being added in header after extracting from a session is not being respected by key-auth plugin
 	//Use custom key auth until the above is fixed.
@@ -115,10 +123,10 @@ func (i *Instance) getSession(id string) *session {
 	defer i.sessMx.RUnlock()
 	return i.sessions[id]
 }
-func (i *Instance) getSessionFromRequestID(id string) *session {
+func (i *Instance) getSessionFromRequestID(id uint32) *session {
 	i.reqSessMx.RLock()
 	defer i.reqSessMx.RUnlock()
-	return i.sessions[id]
+	return i.requestSessions[id]
 }
 func (i *Instance) createSession(reqID uint32, id string, s *session) {
 	i.reqSessMx.Lock()
@@ -128,6 +136,13 @@ func (i *Instance) createSession(reqID uint32, id string, s *session) {
 	i.sessMx.Lock()
 	i.sessions[id] = s
 	i.sessMx.Unlock()
+}
+
+func (i *Instance) addSessionOnRequest(reqID uint32, s *session) {
+	i.reqSessMx.Lock()
+	i.requestSessions[reqID] = s
+	i.reqSessMx.Unlock()
+
 }
 
 const APIKEY = "apiKey"
@@ -140,12 +155,12 @@ func (i *Instance) RequestFilter(cfg interface{}, w http.ResponseWriter, r apisi
 	cookies := r.Header().Get("Cookie")
 	sid, ok := getKeyFromCookies(config.CookieName, cookies)
 	sess := i.getSession(sid)
-	fmt.Println("BRO ", sess)
 	if !ok || sess == nil { //If no session is found or there exists an expired session then create a new Session
 		sid := uuid.New().String()
 		sess = &session{
-			reqID:     r.ID(),
-			sessionID: sid,
+			reqID:         r.ID(),
+			sessionID:     sid,
+			responseCodes: make([][]int, 6), //To fascillitate status codes upto 500
 		}
 		if config.KeyAuthEnabled {
 			sess.apiKeyValue = r.Header().Get(APIKEY)
@@ -167,6 +182,8 @@ func (i *Instance) RequestFilter(cfg interface{}, w http.ResponseWriter, r apisi
 			<-time.After(time.Second * time.Duration(timeout))
 			i.cleanupQueue <- sid
 		}(sid, config.SessionTimeoutInSeconds)
+	} else if sess != nil { //Even for existing sessions, the new requestIDs should be associated with them
+		i.addSessionOnRequest(r.ID(), sess)
 	}
 	if config.KeyAuthEnabled && sess != nil { //When used with key-auth plugin, re-add the apiKey in header
 		if r.Header().Get(APIKEY) != "" { //If another API key is sent for subsequent request then respect the new APIKEY to refresh the store
@@ -190,11 +207,17 @@ func (i *Instance) RequestFilter(cfg interface{}, w http.ResponseWriter, r apisi
 // 1. Sticky sessions with cookies (Requires chash type loadbalancing on upstreams)
 func (i *Instance) ResponseFilter(cfg interface{}, w apisixHTTP.Response) {
 	config := cfg.(Config)
-	i.log.Info("Executing Response filter for resp: ", w.ID())
-	//For some reason the requestID detected in RequestFilter is autoincremented by 1 when detected on response.
+	//For some reason the requestID detected in RequestFilter is autoincremented by 1 when detected on response within the lifecycle of same request.
 	//IMPORTANT: It is assumed that this request ID is unique for across requests
 	reqID := w.ID() - 1
-	if i.requestSessions[reqID] != nil { //Attach the proper cookies on response for existing session
-		w.Header().Set("Set-Cookie", fmt.Sprintf("%s=%s", config.CookieName, i.requestSessions[reqID].sessionID))
+	i.log.Info("Executing Response filter for resp: ", reqID)
+	sess := i.getSessionFromRequestID(reqID)
+	if sess != nil { //Attach the proper cookies on response for existing session
+		sess.addResponseCode(w.StatusCode()) //Store status code
+		if config.SessionTimeoutOnFailedRequests > 0 && len(sess.responseCodes) > 4 && config.SessionTimeoutOnFailedRequests <= len(sess.responseCodes[4])+len(sess.responseCodes[5]) {
+			i.removeSession(sess.sessionID)
+			return
+		}
+		w.Header().Set("Set-Cookie", fmt.Sprintf("%s=%s", config.CookieName, sess.sessionID))
 	}
 }

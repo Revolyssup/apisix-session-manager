@@ -2,7 +2,7 @@ version: '3'
 services:
 
   apisix:
-    image: apache/apisix:2.12.1-alpine
+    image: apache/apisix:2.15.0-debian
     volumes:
         - /tmp/runner.sock:/tmp/runner.sock
         - ./apisix_log:/usr/local/apisix/logs

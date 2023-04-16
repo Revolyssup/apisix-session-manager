@@ -1,0 +1,27 @@
+{
+    "uri": "/request",
+    "plugins": {
+        "ext-plugin-pre-req": {
+            "conf": [
+                {
+                    "name":"session_manager",
+                    "value":"{\"sessionTimeoutInSeconds\":100,\"cookie\":\"x-session-manager-sid\",\"failureLimit\":3}" 
+                }
+            ]
+        },
+                "ext-plugin-post-resp": {
+            "conf": [
+                {
+                    "name":"session_manager",
+                    "value":"{\"sessionTimeoutInSeconds\":100,\"cookie\":\"x-session-manager-sid\",\"failureLimit\":3}"
+                }
+            ]
+        }
+    },
+    "upstream": {
+        "type": "roundrobin",
+        "nodes": {
+            "revoly.dev": 1
+        }
+    }
+}
