@@ -48,6 +48,10 @@ Store, auto-expire, and creation of sessions: The plugin handles the creation an
 
 8. Currently the sessionID is not encrypted so the plugin lacks a good level of security. Session data can be AES-256-GCM encrypted with a key derived using HKDF-SHA256 just like lua-resty-session does.
 
+## Tests and Benchmarks
+![bench](https://user-images.githubusercontent.com/43276904/232770458-5e14b8f4-a9a8-4c9a-87f4-8fd69473486f.png)
+
+
 ## Demo/Screenshots
 The configs passed to admin API for testing each of these features is given in .configs/
 ![Screenshot_20230416_210950](https://user-images.githubusercontent.com/43276904/232324035-81190614-4679-431c-9e66-3f3bb351e578.png)
