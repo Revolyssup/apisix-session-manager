@@ -46,7 +46,7 @@ Store, auto-expire, and creation of sessions: The plugin handles the creation an
 
 7. For consistency pass the same config in both “ext-plugin-pre-req” and “ext-plugin-post-resp”. Example configs are given in configs directory
 
-8. Currently the sessionID is not encrypted so the plugin lacks a good level of security. Session data can be AES-256-GCM encrypted with a key derived using HKDF-SHA256 just like lua-resty-session does.
+8. Currently the session data is not encrypted so the plugin lacks a good level of security. Session data can be AES-256-GCM encrypted with a key derived using HKDF-SHA256 just like lua-resty-session does.
 
 ## Tests and Benchmarks
 ![bench](https://user-images.githubusercontent.com/43276904/232770458-5e14b8f4-a9a8-4c9a-87f4-8fd69473486f.png)
