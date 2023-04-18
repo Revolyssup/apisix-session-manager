@@ -1,0 +1,31 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "Config",
+	"type": "object",
+	"properties": {
+	  "sessionTimeoutInSeconds": {
+		"type": "integer",
+		"description": "Session timeout in seconds"
+	  },
+	  "failureLimit": {
+		"type": "integer",
+		"description": "After this number of failed responses, session will be reset to perform a full refresh. Failure is defined as responses with status code >= 400"
+	  },
+	  "cookie": {
+		"type": "string",
+		"description": "Name of the cookie",
+		"minLength": 1
+	  },
+	  "customKeyAuth": {
+		"type": "string",
+		"description": "Use custom key auth until the issue described in session struct is fixed. This stores the \"password\"/\"value of custom key\""
+	  },
+	  "keyAuthEnabled": {
+		"type": "boolean",
+		"description": "When using it along with the key-auth plugin, the apiKey is stored in session"
+	  }
+	},
+	"required": [
+	  "cookie"
+	]
+  }
