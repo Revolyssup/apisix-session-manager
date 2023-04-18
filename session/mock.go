@@ -2,10 +2,12 @@ package session
 
 import (
 	"context"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	apisixHTTP "github.com/apache/apisix-go-plugin-runner/pkg/http"
 )
@@ -43,7 +45,8 @@ type MockRequest struct {
 }
 
 func (m *MockRequest) ID() uint32 {
-	return 0
+	rand.Seed(time.Now().UnixNano())
+	return rand.Uint32()
 }
 
 func (m *MockRequest) SrcIP() net.IP {

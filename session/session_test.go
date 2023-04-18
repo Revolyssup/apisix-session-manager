@@ -2,10 +2,12 @@ package session
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"testing"
 
 	"github.com/apache/apisix-go-plugin-runner/pkg/runner"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestRequestFilter(t *testing.T) {
@@ -164,6 +166,46 @@ func TestRequestFilter(t *testing.T) {
 	}
 }
 
+// BenchmarkRequestFilter_SessionSetting simulates new user requests triggering session creation.
+// Caveat: The MockRequest generates and returns a random uint32 so the final time will include that.
+func BenchmarkRequestFilter_SessionSetting(b *testing.B) {
+
+	b.ReportAllocs() //Equivalent to setting -benchmem flag
+	type testCase struct {
+		name            string
+		description     string
+		cfg             Config
+		sessionState    map[string]*session //To be used for mocking a session state before Filter handling
+		reqSessionState map[uint32]*session //To be used for mocking a session state before Filter handling
+		req             *MockRequest
+		res             *MockResponseWriter
+	}
+	tt := testCase{
+		name:        "TestSessionSetting",
+		description: "Very basic capability of Filter function to set a new session in cookie for a new request",
+		cfg: Config{
+			CookieName: "test-id",
+		},
+		req: &MockRequest{
+			readheader: mockHeader{header: make(map[string]string)},
+		},
+		res: &MockResponseWriter{
+			writeheader: mockHeader{header: make(map[string]string)},
+		},
+		reqSessionState: make(map[uint32]*session),
+		sessionState:    make(map[string]*session),
+	}
+	i := New(runner.RunnerConfig{
+		LogOutput: zapcore.AddSync(ioutil.Discard),
+	}) // A new instance of plugin
+	i.sessions = tt.sessionState
+	i.requestSessions = tt.reqSessionState
+	b.ResetTimer() //Start the timer after all initializations are done
+	for j := 0; j < b.N; j++ {
+		i.RequestFilter(tt.cfg, tt.res, tt.req)
+	}
+}
+
 func TestResponseFilter(t *testing.T) {
 	type testCase struct {
 		name            string
@@ -226,3 +268,7 @@ func TestResponseFilter(t *testing.T) {
 		}
 	}
 }
+
+// func BenchmarkResponseFilter(b *testing.B) {
+
+// }
